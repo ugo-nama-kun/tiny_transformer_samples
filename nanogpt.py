@@ -253,7 +253,7 @@ class GPT(nn.Module):
         for mn, m in self.named_modules():
             for pn, p in m.named_parameters():
                 fpn = "%s.%s" % (mn, pn) if mn else pn
-                if pn.endwith("bias"):
+                if pn.endswith("bias"):
                     no_decay.add(fpn)
                 elif pn.endswith("weight") and isinstance(m, whitelist_weight_modules):
                     decay.add(fpn)
@@ -334,7 +334,7 @@ if __name__ == '__main__':
     wandb_project = "owt"
     wandb_run_name = "gpt2"
     
-    dataset = "openwebtext"
+    dataset = "shakespare_char" #"openwebtext"
     gradient_accumulation_steps = 5
     batch_size = 12
     block_size = 1024
@@ -342,7 +342,7 @@ if __name__ == '__main__':
     # model
     n_layer = 12
     n_head = 12
-    n_embed = 768
+    n_embd = 768
     dropout = 0.0  # 0.1+ for finetuning
     bias = False
     
@@ -352,14 +352,15 @@ if __name__ == '__main__':
     beta1 = 0.9
     beta2 = 0.95
     grad_clip = 1.0
+    
     decay_lr = True
     warmup_iters = 2_000
-    lr_decay_iters = 60_000
+    lr_decay_iters = 600_000
     min_lr = 6e-5
     
     backend = "nccl"  # "nccl", "gloo", etc.
     
-    device = "mps"  # examples: 'cpu', 'cuda', 'cuda:0', 'cuda:1' etc., or try 'mps' on macbooks
+    device = "cpu" # "mps"  # examples: 'cpu', 'cuda', 'cuda:0', 'cuda:1' etc., or try 'mps' on macbooks
     dtype = "bfloat16"  # 'float32', 'bfloat16', or 'float16', the latter will auto implement a GradScaler
     compile = True
     
@@ -420,7 +421,7 @@ if __name__ == '__main__':
         print(f"found vocab_size = {meta_vocab_size} (inside {meta_path})")
         
     
-    model_args = dict(n_layer=n_layer, n_head=n_head, n_embed=n_embed, block_size=block_size, bias=bias, vocab_size=None, dropout=dropout)
+    model_args = dict(n_layer=n_layer, n_head=n_head, n_embd=n_embd, block_size=block_size, bias=bias, vocab_size=None, dropout=dropout)
     
     if init_from == "scratch":
         print("Initializing a new model from scratch")
@@ -493,12 +494,13 @@ if __name__ == '__main__':
         return out
     
     def get_lr(it):
-        if it > warmup_iters:
+        if it < warmup_iters:
             return learning_rate * it / warmup_iters
         if it > lr_decay_iters:
             return min_lr
         
         decay_ratio = (it - warmup_iters) / (lr_decay_iters - warmup_iters)
+        print(it, warmup_iters, learning_rate, decay_ratio)
         assert 0 <= decay_ratio <= 1.0
         coeff = 0.5 * (1.0 + math.cos(math.pi * decay_ratio))
         return min_lr + coeff * (learning_rate - min_lr)
